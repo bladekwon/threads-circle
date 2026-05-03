@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Threads Circle — 나의 소통 서클</title>
+<meta property="og:title" content="Threads Circle">
+<meta property="og:description" content="Threads 소통 서클을 만들어보세요">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #080808;
+  --surface: #111;
+  --border: rgba(255,255,255,0.08);
+  --text: #f0f0f0;
+  --muted: rgba(255,255,255,0.4);
+  --accent: #c8ff00;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Noto Sans KR', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* HERO */
+.hero {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  text-align: center;
+  position: relative;
+}
+.hero-glow {
+  position: absolute;
+  width: 700px; height: 700px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(200,255,0,0.05) 0%, transparent 70%);
+  pointer-events: none;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+}
+.logo-row {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 3rem;
+  opacity: 0; animation: fadeUp 0.7s 0.1s forwards;
+}
+.logo-icon {
+  width: 36px; height: 36px; border-radius: 50%;
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface);
+}
+.logo-icon svg { width: 18px; height: 18px; }
+.logo-text {
+  font-family: 'Syne', sans-serif;
+  font-size: 13px; font-weight: 600;
+  letter-spacing: 0.15em; text-transform: uppercase;
+  color: var(--muted);
+}
+.hero-title {
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(3.5rem, 12vw, 8rem);
+  font-weight: 800; line-height: 0.92;
+  letter-spacing: -0.03em;
+  margin-bottom: 1.5rem;
+  opacity: 0; animation: fadeUp 0.7s 0.2s forwards;
+}
+.hero-title .accent { color: var(--accent); display: block; }
+.hero-sub {
+  font-size: 15px; color: var(--muted);
+  line-height: 1.7; max-width: 360px;
+  margin-bottom: 3rem;
+  opacity: 0; animation: fadeUp 0.7s 0.3s forwards;
+}
+
+/* INPUT CARD */
+.input-card {
+  width: 100%; max-width: 400px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 1.5rem;
+  opacity: 0; animation: fadeUp 0.7s 0.4s forwards;
+}
+.input-label {
+  font-size: 11px; letter-spacing: 0.15em;
+  text-transform: uppercase; color: var(--muted);
+  margin-bottom: 10px;
+}
+.input-wrap {
+  display: flex; gap: 10px; align-items: center;
+}
+.at-sign {
+  font-family: 'Syne', sans-serif;
+  font-size: 20px; font-weight: 700;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.username-input {
+  flex: 1;
+  background: transparent;
+  border: none; outline: none;
+  font-family: 'Syne', sans-serif;
+  font-size: 18px; font-weight: 600;
+  color: var(--text);
+  width: 100%;
+}
+.username-input::placeholder { color: rgba(255,255,255,0.2); }
+.input-divider {
+  height: 1px; background: var(--border);
+  margin: 1.25rem 0;
+}
+.gen-btn {
+  width: 100%; height: 48px;
+  border-radius: 12px; border: none;
+  background: var(--accent); color: #000;
+  font-family: 'Syne', sans-serif;
+  font-size: 14px; font-weight: 700;
+  letter-spacing: 0.05em; text-transform: uppercase;
+  cursor: pointer; transition: all 0.2s;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.gen-btn:hover { transform: scale(1.02); box-shadow: 0 0 30px rgba(200,255,0,0.25); }
+.gen-btn:active { transform: scale(0.98); }
+.gen-btn svg { width: 16px; height: 16px; }
+
+.scroll-hint {
+  position: absolute; bottom: 2rem; left: 50%;
+  transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  opacity: 0; animation: fadeUp 0.7s 1s forwards;
+}
+.scroll-hint span { font-size: 10px; color: var(--muted); letter-spacing: 0.2em; text-transform: uppercase; }
+.scroll-line { width: 1px; height: 36px; background: linear-gradient(to bottom, var(--muted), transparent); animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:.3} 50%{opacity:1} }
+
+/* RESULT SECTION */
+.result-section {
+  padding: 2rem 1.5rem 4rem;
+  display: flex; flex-direction: column; align-items: center;
+  display: none;
+}
+.result-section.on { display: flex; }
+
+.sec-label {
+  font-family: 'Syne', sans-serif;
+  font-size: 10px; letter-spacing: 0.2em;
+  text-transform: uppercase; color: var(--muted);
+  margin-bottom: 1.5rem;
+  display: flex; align-items: center; gap: 10px;
+}
+.sec-label::before, .sec-label::after {
+  content: ''; width: 32px; height: 1px; background: var(--border);
+}
+
+.canvas-outer {
+  position: relative; width: 100%; max-width: 500px;
+  margin-bottom: 1.5rem;
+}
+#mainCanvas {
+  width: 100%; aspect-ratio: 1;
+  border-radius: 20px; display: block;
+  border: 1px solid var(--border);
+}
+.canvas-loading {
+  position: absolute; inset: 0;
+  display: none; align-items: center; justify-content: center;
+  flex-direction: column; gap: 12px;
+  background: rgba(8,8,8,0.85);
+  border-radius: 20px; backdrop-filter: blur(8px);
+}
+.canvas-loading.on { display: flex; }
+.spin { width: 36px; height: 36px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
+.load-txt { font-size: 13px; color: var(--muted); }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+
+/* COLOR + SAVE */
+.ctrl-row {
+  display: flex; align-items: center; gap: 14px;
+  flex-wrap: wrap; justify-content: center;
+  margin-bottom: 1.5rem;
+}
+.ctrl-label { font-size: 11px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; }
+.swatches { display: flex; gap: 7px; }
+.sw {
+  width: 22px; height: 22px; border-radius: 50%;
+  cursor: pointer; border: 2px solid transparent;
+  transition: transform .15s, border-color .15s;
+}
+.sw:hover { transform: scale(1.2); }
+.sw.on { border-color: var(--accent); }
+.save-btn {
+  font-family: 'Syne', sans-serif;
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 9px 18px; border-radius: 100px;
+  border: 1px solid var(--border);
+  background: transparent; color: var(--muted);
+  cursor: pointer; transition: all .2s;
+}
+.save-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* STATS */
+.stats-grid {
+  display: grid; grid-template-columns: repeat(3,1fr);
+  gap: 10px; width: 100%; max-width: 500px;
+  margin-bottom: 1.5rem;
+}
+.stat-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 14px; padding: 1rem; text-align: center;
+}
+.stat-val { font-family: 'Syne', sans-serif; font-size: 24px; font-weight: 800; color: var(--accent); }
+.stat-lbl { font-size: 10px; color: var(--muted); margin-top: 3px; }
+
+/* TOP LIST */
+.top-wrap { width: 100%; max-width: 500px; }
+.top-hdr {
+  font-family: 'Syne', sans-serif; font-size: 10px;
+  letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted);
+  margin-bottom: .75rem;
+  display: flex; align-items: center; gap: 10px;
+}
+.top-hdr::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.top-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 0; border-bottom: 1px solid var(--border);
+}
+.top-item:last-child { border: none; }
+.top-num { font-family: 'Syne', sans-serif; font-size: 10px; color: var(--muted); width: 18px; text-align: right; flex-shrink: 0; }
+.top-av { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: #000; flex-shrink: 0; }
+.top-info { flex: 1; min-width: 0; }
+.top-name { font-size: 13px; font-weight: 500; }
+.top-handle { font-size: 11px; color: var(--muted); }
+.top-score { font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; color: var(--accent); }
+.ring-tag { font-size: 10px; padding: 2px 7px; border-radius: 100px; border: 1px solid var(--border); color: var(--muted); margin-left: 6px; }
+
+/* AGAIN BTN */
+.again-btn {
+  margin-top: 2rem;
+  font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 600;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 12px 28px; border-radius: 100px;
+  border: 1px solid var(--border);
+  background: transparent; color: var(--muted);
+  cursor: pointer; transition: all .2s;
+}
+.again-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+footer {
+  padding: 2rem; text-align: center;
+  border-top: 1px solid var(--border);
+}
+footer p { font-size: 11px; color: var(--muted); line-height: 2; }
+</style>
+</head>
+<body>
+
+<section class="hero" id="heroSection">
+  <div class="hero-glow"></div>
+  <div class="logo-row">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="1.5">
+        <circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/>
+        <circle cx="12" cy="12" r="1.5" fill="rgba(255,255,255,0.5)" stroke="none"/>
+      </svg>
+    </div>
+    <span class="logo-text">Threads Circle</span>
+  </div>
+  <h1 class="hero-title">나의<span class="accent">소통 서클</span></h1>
+  <p class="hero-sub">Threads 유저네임을 입력하면<br>나만의 소통 서클을 만들어드립니다</p>
+
+  <div class="input-card">
+    <div class="input-label">Threads 유저네임</div>
+    <div class="input-wrap">
+      <span class="at-sign">@</span>
+      <input class="username-input" id="usernameInput" type="text" placeholder="username" autocomplete="off" spellcheck="false" />
+    </div>
+    <div class="input-divider"></div>
+    <button class="gen-btn" onclick="startGenerate()">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>
+      서클 생성하기
+    </button>
+  </div>
+
+  <div class="scroll-hint">
+    <span>scroll</span>
+    <div class="scroll-line"></div>
+  </div>
+</section>
+
+<section class="result-section" id="resultSection">
+  <div class="sec-label">MY CIRCLE</div>
+
+  <div class="canvas-outer">
+    <canvas id="mainCanvas" width="520" height="520"></canvas>
+    <div class="canvas-loading" id="canvasLoading">
+      <div class="spin"></div>
+      <div class="load-txt" id="loadTxt">서클 생성 중...</div>
+    </div>
+  </div>
+
+  <div class="ctrl-row">
+    <span class="ctrl-label">배경색</span>
+    <div class="swatches">
+      <div class="sw on" data-c="#080808" style="background:#080808" onclick="pickColor(this)"></div>
+      <div class="sw" data-c="#0f172a" style="background:#0f172a" onclick="pickColor(this)"></div>
+      <div class="sw" data-c="#1e1b4b" style="background:#1e1b4b" onclick="pickColor(this)"></div>
+      <div class="sw" data-c="#042c53" style="background:#042c53" onclick="pickColor(this)"></div>
+      <div class="sw" data-c="#2d1a0e" style="background:#2d1a0e" onclick="pickColor(this)"></div>
+      <div class="sw" data-c="#f5f5f0" style="background:#f5f5f0;border-color:rgba(0,0,0,0.15)" onclick="pickColor(this)"></div>
+    </div>
+    <button class="save-btn" onclick="saveImg()">이미지 저장</button>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-val" id="s1">-</div><div class="stat-lbl">분석 게시물</div></div>
+    <div class="stat-card"><div class="stat-val" id="s2">-</div><div class="stat-lbl">소통한 사람</div></div>
+    <div class="stat-card"><div class="stat-val" id="s3">-</div><div class="stat-lbl">총 인터랙션</div></div>
+  </div>
+
+  <div class="top-wrap">
+    <div class="top-hdr">소통 순위</div>
+    <div id="topItems"></div>
+  </div>
+
+  <button class="again-btn" onclick="goBack()">↩ 다시 만들기</button>
+</section>
+
+<footer>
+  <p>Threads Circle — Threads, Instagram, Meta와 공식적으로 관련이 없습니다.<br>표시되는 데이터는 시각화를 위한 가상 데이터입니다.</p>
+</footer>
+
+<script>
+const W=520,H=520;
+const canvas=document.getElementById('mainCanvas');
+const ctx=canvas.getContext('2d');
+let bgColor='#080808';
+let circleData=null;
+let currentUser='';
+const COLORS=['#c8ff00','#ff6b35','#818cf8','#34d399','#f472b6','#60a5fa','#fbbf24','#f87171','#38bdf8','#e879f9','#2dd4bf','#a78bfa','#fb923c','#4ade80','#e2e8f0'];
+
+const KNAMES=['지수','민준','서연','도윤','하은','준서','아린','현우','다은','성민','유진','태양','나연','재원','소희','승현','보름','찬호','미래','준혁','이안','채원','시우','예린','동현','수아','태민','혜진','주호','다인','윤서','지호','소율','건우','하린','재민','수민','예준','지아','민서','은우','서준','하율','주원','시연','찬영','나은','세준','아연','민아'];
+
+function seededRand(seed){
+  let s=seed;
+  return ()=>{
+    s=(s*1664525+1013904223)&0xffffffff;
+    return (s>>>0)/0xffffffff;
+  };
+}
+function hashStr(str){
+  let h=5381;
+  for(let i=0;i<str.length;i++) h=((h<<5)+h)+str.charCodeAt(i);
+  return Math.abs(h);
+}
+
+function generateFakeData(username){
+  const rand=seededRand(hashStr(username));
+  const count=10+Math.floor(rand()*6);
+  const usedNames=new Set();
+  const users=[];
+  for(let i=0;i<count;i++){
+    let name;
+    do{ name=KNAMES[Math.floor(rand()*KNAMES.length)]; }while(usedNames.has(name));
+    usedNames.add(name);
+    const score=Math.floor(rand()*300+15);
+    users.push({
+      name, handle:'@'+name.toLowerCase()+(Math.floor(rand()*9000+1000)),
+      score, ring:i<3?0:i<8?1:2,
+      color:COLORS[i%COLORS.length]
+    });
+  }
+  users.sort((a,b)=>b.score-a.score);
+  users.forEach((u,i)=>{ u.ring=i<3?0:i<8?1:2; });
+  const posts=Math.floor(rand()*80+20);
+  const people=users.length;
+  const inter=users.reduce((s,u)=>s+u.score,0);
+  return {users,posts,people,inter};
+}
+
+const loadMsgs=['팔로워 데이터 수집 중...','인터랙션 분석 중...','소통 패턴 계산 중...','서클 렌더링 중...'];
+
+async function startGenerate(){
+  const username=document.getElementById('usernameInput').value.trim().replace('@','');
+  if(!username){ document.getElementById('usernameInput').focus(); return; }
+  currentUser=username;
+
+  document.getElementById('heroSection').style.display='none';
+  document.getElementById('resultSection').classList.add('on');
+  document.getElementById('resultSection').scrollIntoView({behavior:'smooth'});
+
+  const loading=document.getElementById('canvasLoading');
+  const loadTxt=document.getElementById('loadTxt');
+  loading.classList.add('on');
+
+  ctx.fillStyle='#080808';ctx.fillRect(0,0,W,H);
+
+  for(let i=0;i<loadMsgs.length;i++){
+    loadTxt.textContent=loadMsgs[i];
+    await new Promise(r=>setTimeout(r,500+Math.random()*400));
+  }
+
+  const data=generateFakeData(username);
+  circleData=data.users;
+
+  document.getElementById('s1').textContent=data.posts;
+  document.getElementById('s2').textContent=data.people;
+  document.getElementById('s3').textContent=data.inter;
+
+  const topItems=document.getElementById('topItems');
+  topItems.innerHTML='';
+  data.users.slice(0,10).forEach((u,i)=>{
+    const rl=['1st','2nd','3rd'][u.ring];
+    topItems.innerHTML+=`<div class="top-item" style="opacity:0;animation:fadeUp .4s ${i*0.05}s forwards">
+      <div class="top-num">${i+1}</div>
+      <div class="top-av" style="background:${u.color}">${u.name[0]}</div>
+      <div class="top-info"><div class="top-name">${u.name}</div><div class="top-handle">${u.handle}</div></div>
+      <div style="display:flex;align-items:center">
+        <span class="top-score">${u.score}pt</span>
+        <span class="ring-tag">${rl}</span>
+      </div>
+    </div>`;
+  });
+
+  renderCircle();
+  loading.classList.remove('on');
+}
+
+function renderCircle(){
+  ctx.clearRect(0,0,W,H);
+  const cx=W/2,cy=H/2;
+  const isDark=bgColor!=='#f5f5f0';
+  ctx.fillStyle=bgColor;ctx.fillRect(0,0,W,H);
+
+  // rings
+  [195,132,72].forEach((r,i)=>{
+    const a=[0.03,0.045,0.06][i];
+    ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);
+    ctx.fillStyle=isDark?`rgba(255,255,255,${a})`:`rgba(0,0,0,${a})`;ctx.fill();
+    ctx.strokeStyle=isDark?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.07)';
+    ctx.lineWidth=0.5;ctx.stroke();
+  });
+
+  const rings=[[],[],[]];
+  circleData.forEach(u=>rings[u.ring].push(u));
+  const radii=[76,133,193];
+  const avSizes=[34,27,21];
+
+  rings.forEach((ring,ri)=>{
+    ring.forEach((user,ui)=>{
+      const angle=(ui/Math.max(ring.length,1))*Math.PI*2-Math.PI/2;
+      const x=cx+radii[ri]*Math.cos(angle);
+      const y=cy+radii[ri]*Math.sin(angle);
+      const av=avSizes[ri];
+
+      if(isDark){
+        const g=ctx.createRadialGradient(x,y,av*.4,x,y,av+10);
+        g.addColorStop(0,user.color+'33');g.addColorStop(1,'transparent');
+        ctx.beginPath();ctx.arc(x,y,av+10,0,Math.PI*2);ctx.fillStyle=g;ctx.fill();
+      }
+
+      ctx.beginPath();ctx.arc(x,y,av,0,Math.PI*2);
+      ctx.fillStyle=user.color;ctx.fill();
+
+      ctx.fillStyle='rgba(0,0,0,0.85)';
+      ctx.font=`700 ${Math.round(av*.46)}px 'Syne',sans-serif`;
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(user.name[0],x,y);
+
+      ctx.fillStyle=isDark?'rgba(255,255,255,0.65)':'rgba(0,0,0,0.6)';
+      ctx.font=`${Math.round(av*.37)}px 'Noto Sans KR',sans-serif`;
+      const lbl=user.name.length>7?user.name.slice(0,6)+'…':user.name;
+      ctx.fillText(lbl,x,y+av+11);
+
+      ctx.fillStyle=user.color+'99';
+      ctx.font=`600 ${Math.round(av*.28)}px 'Syne',sans-serif`;
+      ctx.fillText(user.score+'pt',x,y+av+21);
+    });
+  });
+
+  // center avatar
+  const cg=ctx.createRadialGradient(cx,cy-6,0,cx,cy,48);
+  cg.addColorStop(0,isDark?'#fff':'#111');
+  cg.addColorStop(1,isDark?'#ddd':'#333');
+  ctx.beginPath();ctx.arc(cx,cy,48,0,Math.PI*2);ctx.fillStyle=cg;ctx.fill();
+
+  ctx.fillStyle=isDark?'#000':'#fff';
+  ctx.font=`700 17px 'Syne',sans-serif`;
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(currentUser.slice(0,2).toUpperCase(),cx,cy-6);
+  ctx.font=`400 9px 'Noto Sans KR',sans-serif`;
+  ctx.fillStyle=isDark?'rgba(0,0,0,0.45)':'rgba(255,255,255,0.5)';
+  ctx.fillText('@'+currentUser,cx,cy+8);
+
+  // watermark
+  ctx.fillStyle=isDark?'rgba(255,255,255,0.1)':'rgba(0,0,0,0.1)';
+  ctx.font=`500 9px 'Syne',sans-serif`;
+  ctx.textAlign='center';
+  ctx.fillText('THREADS CIRCLE',cx,H-13);
+}
+
+function pickColor(el){
+  document.querySelectorAll('.sw').forEach(s=>s.classList.remove('on'));
+  el.classList.add('on');
+  bgColor=el.dataset.c;
+  if(circleData)renderCircle();
+}
+
+function saveImg(){
+  if(!circleData)return;
+  const a=document.createElement('a');
+  a.download=`threads-circle-${currentUser}.png`;
+  a.href=canvas.toDataURL('image/png');
+  a.click();
+}
+
+function goBack(){
+  document.getElementById('resultSection').classList.remove('on');
+  document.getElementById('heroSection').style.display='flex';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+document.getElementById('usernameInput').addEventListener('keydown',e=>{
+  if(e.key==='Enter')startGenerate();
+});
+</script>
+</body>
+</html>
