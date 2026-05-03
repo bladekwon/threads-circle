@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Threads Circle — bladekwon</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #080808;
+  --surface: #111;
+  --border: rgba(255,255,255,0.08);
+  --text: #f0f0f0;
+  --muted: rgba(255,255,255,0.4);
+  --accent: #c8ff00;
+  --accent2: #ff6b35;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Noto Sans KR', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* noise overlay */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* HERO */
+.hero {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding: 2rem;
+  text-align: center;
+}
+
+.hero-glow {
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(200,255,0,0.06) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.logo-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 3rem;
+  opacity: 0;
+  animation: fadeUp 0.8s 0.1s forwards;
+}
+.logo-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+}
+.logo-icon svg { width: 20px; height: 20px; }
+.logo-text {
+  font-family: 'Syne', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.hero-title {
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(3rem, 10vw, 7rem);
+  font-weight: 800;
+  line-height: 0.95;
+  letter-spacing: -0.03em;
+  margin-bottom: 1.5rem;
+  opacity: 0;
+  animation: fadeUp 0.8s 0.2s forwards;
+}
+.hero-title .accent { color: var(--accent); }
+.hero-title .block { display: block; }
+
+.hero-sub {
+  font-size: 15px;
+  color: var(--muted);
+  line-height: 1.7;
+  max-width: 400px;
+  margin-bottom: 3rem;
+  opacity: 0;
+  animation: fadeUp 0.8s 0.35s forwards;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 100px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 2rem;
+  opacity: 0;
+  animation: fadeUp 0.8s 0.45s forwards;
+}
+.status-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #555;
+  transition: background 0.3s;
+}
+.status-pill.ok .status-dot { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+.status-pill.ok { border-color: rgba(200,255,0,0.2); color: var(--text); }
+.status-pill.err .status-dot { background: #ff4444; }
+
+.gen-btn {
+  font-family: 'Syne', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 16px 40px;
+  border-radius: 100px;
+  border: none;
+  background: var(--accent);
+  color: #000;
+  cursor: pointer;
+  transition: all 0.2s;
+  opacity: 0;
+  animation: fadeUp 0.8s 0.55s forwards;
+}
+.gen-btn:hover { transform: scale(1.04); box-shadow: 0 0 40px rgba(200,255,0,0.3); }
+.gen-btn:disabled { background: #222; color: #555; cursor: not-allowed; transform: none; box-shadow: none; }
+
+.scroll-hint {
+  position: absolute;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  opacity: 0;
+  animation: fadeUp 0.8s 1s forwards;
+}
+.scroll-hint span { font-size: 11px; color: var(--muted); letter-spacing: 0.15em; text-transform: uppercase; }
+.scroll-arrow { width: 1px; height: 40px; background: linear-gradient(to bottom, var(--muted), transparent); animation: scrollPulse 2s infinite; }
+@keyframes scrollPulse { 0%,100%{opacity:0.3} 50%{opacity:1} }
+
+/* CANVAS SECTION */
+.canvas-section {
+  padding: 4rem 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.section-label {
+  font-family: 'Syne', sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.section-label::before, .section-label::after {
+  content: '';
+  width: 40px;
+  height: 1px;
+  background: var(--border);
+}
+
+.canvas-outer {
+  position: relative;
+  width: 100%;
+  max-width: 540px;
+}
+#mainCanvas {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 20px;
+  display: block;
+  border: 1px solid var(--border);
+}
+
+.canvas-loading {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 16px;
+  background: rgba(8,8,8,0.8);
+  border-radius: 20px;
+  backdrop-filter: blur(8px);
+}
+.canvas-loading.on { display: flex; }
+.spin-ring {
+  width: 40px; height: 40px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+.loading-text { font-size: 13px; color: var(--muted); }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.canvas-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+.canvas-empty svg { opacity: 0.15; }
+.canvas-empty span { font-size: 13px; color: var(--muted); }
+
+/* PROGRESS */
+.prog-wrap {
+  width: 100%;
+  max-width: 540px;
+  margin-top: 1.5rem;
+  display: none;
+}
+.prog-wrap.on { display: block; }
+.prog-label { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+.prog-bar { width: 100%; height: 2px; background: var(--border); border-radius: 2px; overflow: hidden; }
+.prog-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.4s; }
+
+/* COLOR PICKER */
+.color-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 2rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.color-label { font-size: 12px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; }
+.swatches { display: flex; gap: 8px; }
+.sw {
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: transform 0.15s, border-color 0.15s;
+  position: relative;
+}
+.sw:hover { transform: scale(1.2); }
+.sw.on { border-color: var(--accent); }
+.sw.on::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1px solid rgba(200,255,0,0.4);
+}
+
+.save-btn {
+  font-family: 'Syne', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 10px 20px;
+  border-radius: 100px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.save-btn:hover { border-color: var(--accent); color: var(--accent); }
+.save-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* STATS */
+.stats-section {
+  width: 100%;
+  max-width: 540px;
+  display: none;
+  margin-top: 3rem;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.stats-section.on { display: grid; }
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1.25rem 1rem;
+  text-align: center;
+}
+.stat-val {
+  font-family: 'Syne', sans-serif;
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--accent);
+}
+.stat-lbl { font-size: 11px; color: var(--muted); margin-top: 4px; letter-spacing: 0.05em; }
+
+/* TOP LIST */
+.top-section {
+  width: 100%;
+  max-width: 540px;
+  margin-top: 2rem;
+  display: none;
+}
+.top-section.on { display: block; }
+.top-header {
+  font-family: 'Syne', sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.top-header::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.top-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+  animation: fadeUp 0.4s forwards;
+}
+.top-item:last-child { border: none; }
+.top-num {
+  font-family: 'Syne', sans-serif;
+  font-size: 11px;
+  color: var(--muted);
+  width: 20px;
+  text-align: right;
+  flex-shrink: 0;
+}
+.top-av {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: #000;
+  flex-shrink: 0;
+}
+.top-info { flex: 1; min-width: 0; }
+.top-name { font-size: 14px; font-weight: 500; }
+.top-handle { font-size: 11px; color: var(--muted); }
+.top-score {
+  font-family: 'Syne', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+}
+.ring-tag {
+  font-size: 10px;
+  padding: 3px 8px;
+  border-radius: 100px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  margin-left: 8px;
+}
+
+/* FOOTER */
+footer {
+  padding: 3rem 2rem;
+  text-align: center;
+  border-top: 1px solid var(--border);
+  margin-top: 4rem;
+}
+footer p { font-size: 12px; color: var(--muted); line-height: 2; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-glow"></div>
+
+  <div class="logo-row">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="1.5">
+        <circle cx="12" cy="12" r="9"/>
+        <circle cx="12" cy="12" r="5"/>
+        <circle cx="12" cy="12" r="1.5" fill="rgba(255,255,255,0.5)" stroke="none"/>
+      </svg>
+    </div>
+    <span class="logo-text">Threads Circle</span>
+  </div>
+
+  <h1 class="hero-title">
+    <span class="block">나의</span>
+    <span class="block accent">소통 서클</span>
+  </h1>
+
+  <p class="hero-sub">Threads에서 가장 많이 소통한 사람들을<br>아름다운 원형 이미지로 시각화합니다</p>
+
+  <div class="status-pill" id="statusPill">
+    <div class="status-dot"></div>
+    <span id="statusText">연결 중...</span>
+  </div>
+
+  <button class="gen-btn" id="heroGenBtn" disabled onclick="generateCircle()">서클 생성하기</button>
+
+  <div class="scroll-hint">
+    <span>scroll</span>
+    <div class="scroll-arrow"></div>
+  </div>
+</section>
+
+<!-- CANVAS -->
+<section class="canvas-section">
+  <div class="section-label">MY CIRCLE</div>
+
+  <div class="canvas-outer">
+    <canvas id="mainCanvas" width="520" height="520"></canvas>
+    <div class="canvas-loading" id="canvasLoading">
+      <div class="spin-ring"></div>
+      <div class="loading-text" id="loadingText">분석 중...</div>
+    </div>
+    <div class="canvas-empty" id="canvasEmpty">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1">
+        <circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="white" stroke="none"/>
+      </svg>
+      <span>서클 생성 버튼을 눌러주세요</span>
+    </div>
+  </div>
+
+  <div class="prog-wrap" id="progWrap">
+    <div class="prog-label" id="progLabel">분석 중...</div>
+    <div class="prog-bar"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+  </div>
+
+  <div class="color-row">
+    <span class="color-label">배경색</span>
+    <div class="swatches">
+      <div class="sw on" data-c="#080808" style="background:#080808" onclick="pickColor(this)"></div>
+      <div class="sw" data-c="#0f172a" style="background:#0f172a" onclick="pickColor(this)"></div>
+      <div class="sw" data-c="#1e1b4b" style="background:#1e1b4b" onclick="pickColor(this)"></div>
+      <div class="sw" data-c="#042c53" style="background:#042c53" onclick="pickColor(this)"></div>
+      <div class="sw" data-c="#2d1a0e" style="background:#2d1a0e" onclick="pickColor(this)"></div>
+      <div class="sw" data-c="#f5f5f0" style="background:#f5f5f0;border-color:rgba(0,0,0,0.15)" onclick="pickColor(this)"></div>
+    </div>
+    <button class="save-btn" id="saveBtn" disabled onclick="saveImg()">이미지 저장</button>
+  </div>
+
+  <div class="stats-section" id="statsSection">
+    <div class="stat-card"><div class="stat-val" id="s1">-</div><div class="stat-lbl">분석 게시물</div></div>
+    <div class="stat-card"><div class="stat-val" id="s2">-</div><div class="stat-lbl">소통한 사람</div></div>
+    <div class="stat-card"><div class="stat-val" id="s3">-</div><div class="stat-lbl">총 인터랙션</div></div>
+  </div>
+
+  <div class="top-section" id="topSection">
+    <div class="top-header">소통 순위</div>
+    <div id="topItems"></div>
+  </div>
+</section>
+
+<footer>
+  <p>Threads Circle — bladekwon 전용<br>
+  Threads, Instagram, Meta와 공식적으로 관련이 없습니다.</p>
+</footer>
+
+<script>
+const W=520,H=520;
+const canvas=document.getElementById('mainCanvas');
+const ctx=canvas.getContext('2d');
+let bgColor='#080808';
+let token='THAAYPMmVfncZABYmFKYzNrNWRlcnJUZA1FJejFRSTVUTURKd0EwaDRtTThqdkdNT2Q1NEdZAYUFPTXJYYl9SZAU9JdW14ZAXJnYnhKSmtJR2hfTE1TS09rNVZAEUGVXQ3VueEtBaEN2M2FUTGMzVXFJb0NlaTFtNjZApWS1UOUVBaGRXM3p5MmlEUm52ODd3RVpnaG8ZD';
+let userId='',username='';
+let isConn=false,generated=false,circleData=null;
+const COLORS=['#c8ff00','#ff6b35','#818cf8','#34d399','#f472b6','#60a5fa','#fbbf24','#f87171','#38bdf8','#e879f9','#2dd4bf','#a78bfa'];
+const PROXY='https://corsproxy.io/?url=';
+
+function apiUrl(path){ return PROXY+encodeURIComponent('https://graph.threads.net'+path); }
+
+function setStatus(ok,msg,err=false){
+  const pill=document.getElementById('statusPill');
+  pill.className='status-pill'+(ok?' ok':err?' err':'');
+  document.getElementById('statusText').textContent=msg;
+  isConn=ok;
+  document.getElementById('heroGenBtn').disabled=!ok;
+}
+
+// draw placeholder
+(function initCanvas(){
+  ctx.fillStyle='#080808';
+  ctx.fillRect(0,0,W,H);
+  [190,130,70].forEach(r=>{
+    ctx.beginPath();ctx.arc(W/2,H/2,r,0,Math.PI*2);
+    ctx.strokeStyle='rgba(255,255,255,0.05)';ctx.lineWidth=1;ctx.stroke();
+  });
+})();
+
+async function init(){
+  try{
+    const res=await fetch(apiUrl(`/v1.0/me?fields=id,username&access_token=${token}`));
+    const data=await res.json();
+    if(data.error)throw new Error(data.error.message);
+    userId=data.id;
+    username=data.username||data['사용자 이름']||'bladekwon';
+    setStatus(true,`@${username} 연결됨`);
+  }catch(e){
+    setStatus(false,'토큰 오류 — 재발급 필요',true);
+  }
+}
+
+function pickColor(el){
+  document.querySelectorAll('.sw').forEach(s=>s.classList.remove('on'));
+  el.classList.add('on');
+  bgColor=el.dataset.c;
+  if(generated&&circleData)renderCircle();
+}
+
+function saveImg(){
+  if(!generated)return;
+  const a=document.createElement('a');
+  a.download=`threads-circle-${username}.png`;
+  a.href=canvas.toDataURL('image/png');
+  a.click();
+}
+
+const steps=['게시물 불러오는 중...','댓글 분석 중...','인터랙션 계산 중...','서클 렌더링 중...'];
+
+async function generateCircle(){
+  if(!isConn)return;
+  document.querySelector('.canvas-section').scrollIntoView({behavior:'smooth'});
+  const btn=document.getElementById('heroGenBtn');
+  const loading=document.getElementById('canvasLoading');
+  const loadingText=document.getElementById('loadingText');
+  const progWrap=document.getElementById('progWrap');
+  const progFill=document.getElementById('progFill');
+  const progLabel=document.getElementById('progLabel');
+  const empty=document.getElementById('canvasEmpty');
+
+  btn.disabled=true;
+  loading.classList.add('on');
+  empty.style.display='none';
+  progWrap.classList.add('on');
+  document.getElementById('statsSection').classList.remove('on');
+  document.getElementById('topSection').classList.remove('on');
+  generated=false;
+
+  ctx.fillStyle=bgColor;ctx.fillRect(0,0,W,H);
+
+  const scoreMap={};
+  let totalInter=0,postsCount=0;
+
+  try{
+    loadingText.textContent=steps[0];progLabel.textContent=steps[0];progFill.style.width='10%';
+    const tRes=await fetch(apiUrl(`/v1.0/${userId}/threads?fields=id,text,timestamp&limit=25&access_token=${token}`));
+    const tData=await tRes.json();
+    if(tData.error)throw new Error(tData.error.message);
+    const threads=tData.data||[];
+    postsCount=threads.length;
+
+    loadingText.textContent=steps[1];progLabel.textContent=steps[1];
+    for(let i=0;i<Math.min(threads.length,15);i++){
+      const pct=Math.round(15+i/15*55);
+      progFill.style.width=pct+'%';
+      const t=threads[i];
+      try{
+        const rRes=await fetch(apiUrl(`/v1.0/${t.id}/replies?fields=id,username,text&limit=50&access_token=${token}`));
+        const rData=await rRes.json();
+        for(const r of(rData.data||[])){
+          const u=r.username;
+          if(!u||u===username)continue;
+          scoreMap[u]=(scoreMap[u]||0)+2;totalInter++;
+        }
+        const cRes=await fetch(apiUrl(`/v1.0/${t.id}/conversation?fields=id,username,text&limit=30&access_token=${token}`));
+        const cData=await cRes.json();
+        for(const c of(cData.data||[])){
+          const u=c.username;
+          if(!u||u===username)continue;
+          scoreMap[u]=(scoreMap[u]||0)+1;totalInter++;
+        }
+      }catch(e){}
+      await new Promise(r=>setTimeout(r,100));
+    }
+
+    loadingText.textContent=steps[2];progLabel.textContent=steps[2];progFill.style.width='80%';
+    await new Promise(r=>setTimeout(r,400));
+
+    const sorted=Object.entries(scoreMap).sort((a,b)=>b[1]-a[1]);
+
+    if(sorted.length===0){
+      loading.classList.remove('on');
+      empty.style.display='flex';
+      empty.querySelector('span').textContent='댓글 데이터가 없습니다';
+      progWrap.classList.remove('on');
+      btn.disabled=false;
+      return;
+    }
+
+    circleData=sorted.slice(0,15).map(([uname,score],i)=>({name:uname,score,ring:i<3?0:i<8?1:2,color:COLORS[i%COLORS.length]}));
+
+    document.getElementById('s1').textContent=postsCount;
+    document.getElementById('s2').textContent=sorted.length;
+    document.getElementById('s3').textContent=totalInter;
+    document.getElementById('statsSection').classList.add('on');
+
+    const topItems=document.getElementById('topItems');
+    topItems.innerHTML='';
+    circleData.slice(0,10).forEach((u,i)=>{
+      const rl=['1st','2nd','3rd'][u.ring];
+      topItems.innerHTML+=`<div class="top-item" style="animation-delay:${i*0.05}s">
+        <div class="top-num">${i+1}</div>
+        <div class="top-av" style="background:${u.color}">${u.name[0].toUpperCase()}</div>
+        <div class="top-info"><div class="top-name">${u.name}</div><div class="top-handle">@${u.name}</div></div>
+        <div style="display:flex;align-items:center">
+          <span class="top-score">${u.score}pt</span>
+          <span class="ring-tag">${rl}</span>
+        </div>
+      </div>`;
+    });
+    document.getElementById('topSection').classList.add('on');
+
+    loadingText.textContent=steps[3];progLabel.textContent=steps[3];progFill.style.width='95%';
+    await new Promise(r=>setTimeout(r,300));
+    renderCircle();
+    progFill.style.width='100%';
+    await new Promise(r=>setTimeout(r,300));
+    loading.classList.remove('on');
+    progWrap.classList.remove('on');
+    btn.disabled=false;
+    document.getElementById('saveBtn').disabled=false;
+    generated=true;
+
+  }catch(e){
+    loadingText.textContent='오류: '+e.message;
+    progWrap.classList.remove('on');
+    btn.disabled=false;
+  }
+}
+
+function renderCircle(){
+  ctx.clearRect(0,0,W,H);
+  const cx=W/2,cy=H/2;
+  const isDark=bgColor!=='#f5f5f0';
+  ctx.fillStyle=bgColor;ctx.fillRect(0,0,W,H);
+
+  // rings
+  [195,132,72].forEach((r,i)=>{
+    const alpha=[0.03,0.04,0.05][i];
+    ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);
+    ctx.fillStyle=isDark?`rgba(255,255,255,${alpha})`:`rgba(0,0,0,${alpha})`;ctx.fill();
+    ctx.strokeStyle=isDark?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.07)';ctx.lineWidth=0.5;ctx.stroke();
+  });
+
+  const rings=[[],[],[]];
+  circleData.forEach(u=>rings[u.ring].push(u));
+  const radii=[76,133,193];
+  const avSizes=[34,27,21];
+
+  rings.forEach((ring,ri)=>{
+    ring.forEach((user,ui)=>{
+      const angle=(ui/Math.max(ring.length,1))*Math.PI*2-Math.PI/2;
+      const x=cx+radii[ri]*Math.cos(angle);
+      const y=cy+radii[ri]*Math.sin(angle);
+      const av=avSizes[ri];
+
+      // glow
+      if(isDark){
+        const g=ctx.createRadialGradient(x,y,av*0.5,x,y,av+10);
+        g.addColorStop(0,user.color+'33');g.addColorStop(1,'transparent');
+        ctx.beginPath();ctx.arc(x,y,av+10,0,Math.PI*2);ctx.fillStyle=g;ctx.fill();
+      }
+
+      ctx.beginPath();ctx.arc(x,y,av,0,Math.PI*2);
+      ctx.fillStyle=user.color;ctx.fill();
+
+      ctx.fillStyle=isDark?'rgba(0,0,0,0.85)':'rgba(0,0,0,0.85)';
+      ctx.font=`700 ${Math.round(av*.46)}px 'Syne', sans-serif`;
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(user.name[0].toUpperCase(),x,y);
+
+      ctx.fillStyle=isDark?'rgba(255,255,255,0.65)':'rgba(0,0,0,0.6)';
+      ctx.font=`${Math.round(av*.37)}px 'Noto Sans KR', sans-serif`;
+      const label=user.name.length>8?user.name.slice(0,7)+'…':user.name;
+      ctx.fillText(label,x,y+av+11);
+
+      ctx.fillStyle=user.color+'99';
+      ctx.font=`600 ${Math.round(av*.28)}px 'Syne', sans-serif`;
+      ctx.fillText(user.score+'pt',x,y+av+22);
+    });
+  });
+
+  // center
+  const mainR=48;
+  const cg=ctx.createRadialGradient(cx,cy-8,0,cx,cy,mainR);
+  cg.addColorStop(0,isDark?'#fff':'#111');
+  cg.addColorStop(1,isDark?'#ddd':'#333');
+  ctx.beginPath();ctx.arc(cx,cy,mainR,0,Math.PI*2);ctx.fillStyle=cg;ctx.fill();
+  ctx.fillStyle=isDark?'#000':'#fff';
+  ctx.font=`700 18px 'Syne', sans-serif`;
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(username.slice(0,2).toUpperCase(),cx,cy-6);
+  ctx.font=`400 9px 'Noto Sans KR', sans-serif`;
+  ctx.fillStyle=isDark?'rgba(0,0,0,0.5)':'rgba(255,255,255,0.5)';
+  ctx.fillText('@'+username,cx,cy+8);
+
+  // watermark
+  ctx.fillStyle=isDark?'rgba(255,255,255,0.1)':'rgba(0,0,0,0.1)';
+  ctx.font=`500 9px 'Syne', sans-serif`;
+  ctx.letterSpacing='0.1em';
+  ctx.textAlign='center';
+  ctx.fillText('THREADS CIRCLE',cx,H-14);
+}
+
+init();
+</script>
+</body>
+</html>
